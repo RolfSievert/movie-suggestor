@@ -114,19 +114,27 @@ def update_suggestions(ratings, status=True):
     print()
     return res, res_p
 
+def is_subset(subs, s):
+    return set(subs).issubset(s)
 
-def preview_suggestions(suggs, item_count=50):
+def preview_suggestions(suggs, item_count=100, genres=None):
     """
     Uses 'less' to preview dict of movie suggestions.
     """
     id_to_genre = MOVIE.get_genres()
     full_text = ""
-    for title, (score, relations, data) in reversed(suggs[-item_count:-1]):
-        movie_item = "\e[33m{}\e[0m ({}) (match {:.2f}, relevance {})\n\tGenres: {}\n\tPopularity: {}\n\tRating: {}\n\t{}\n".format(
-            title, data["release_date"].split("-")[0], score, relations,
-            [id_to_genre[g] for g in data["genre_ids"]], data["popularity"], data["vote_average"],
-            "https://www.themoviedb.org/movie/" + str(data["id"]))
-        full_text += movie_item
+    count = 0
+    for title, (score, relations, data) in reversed(suggs):
+        movie_genres = [id_to_genre[g].lower() for g in data["genre_ids"]]
+        if count == item_count:
+            break
+        if not genres or is_subset(genres, movie_genres):
+            count += 1
+            movie_item = "\e[33m{}\e[0m ({}) (match {:.2f}, relevance {})\n\tGenres: {}\n\tPopularity: {}\n\tRating: {}\n\t{}\n".format(
+                title, data["release_date"].split("-")[0], score, relations,
+                movie_genres, data["popularity"], data["vote_average"],
+                "https://www.themoviedb.org/movie/" + str(data["id"]))
+            full_text += movie_item
 
     # TODO switch to subprocess?
     os.system('echo -e "{}" | less'.format(full_text))
@@ -186,7 +194,7 @@ if __name__ == "__main__":
         print("\t's[uggest]' \t- preview {}".format(SUGGESTIONS_PATH))
         print("\t's[uggest] p[ersonalized]' \t- preview {}".format(SUGGESTIONS_PERSONALIZED_PATH))
         print("\t'g[enre]' \t- show genre options")
-        #print("\t'<genre>' \t- preview {} filtered by genre".format(SUGGESTIONS_PATH))
+        print("\t'<genre[s]>' \t- preview {} filtered by genre".format(SUGGESTIONS_PATH))
         print("\t'u[pdate]' \t- update ratings.csv from imdb and generate suggestion files")
 
         # Option suggest (preview options with vim bindings)
@@ -203,6 +211,8 @@ if __name__ == "__main__":
                 print("\t{} - {}".format(g, g_id))
 
         # TODO Option <genre>, filter suggestions by <genre> and preview
+        elif user_input and is_subset(user_input.split(), [g.lower() for g in MOVIE.get_genres().values()]):
+            preview_suggestions(_suggestions, genres=user_input.split())
 
         # Option update ratings.csv from imdb and update suggestions.txt
         elif command_match(user_input, "update"):

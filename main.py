@@ -115,12 +115,16 @@ def update_suggestions(ratings, status=True):
     return res, res_p
 
 def is_subset(subs, s):
-    return set(subs).issubset(s)
+    """
+    Subset on lists.
+    """
+    return len([x for x in subs if x in s]) == len(subs)
 
 def preview_suggestions(suggs, item_count=100, genres=None):
     """
     Uses 'less' to preview dict of movie suggestions.
     """
+    print("preview", genres)
     id_to_genre = MOVIE.get_genres()
     full_text = ""
     count = 0
@@ -153,6 +157,55 @@ def command_match(text, command):
             return False
     return True
 
+def movie_loop():
+    """
+    Loop options for movies.
+    """
+    user_input = ""
+
+    while True:
+        # clear terminal
+        os.system('clear')
+
+        # Print options
+        print("Options:")
+        print("\t's[uggest]' \t- preview {}".format(SUGGESTIONS_PATH))
+        print("\t's[uggest] p[ersonalized]' \t- preview {}".format(SUGGESTIONS_PERSONALIZED_PATH))
+        print("\t'g[enre]' \t- show genre options")
+        print("\t'<genre>, ...' \t- preview {} filtered by genre".format(SUGGESTIONS_PATH))
+        print("\t'u[pdate]' \t- update ratings.csv from imdb and generate suggestion files")
+
+        # Option suggest (preview options with vim bindings)
+        if command_match(user_input, "suggest"):
+            preview_suggestions(_suggestions)
+        # Option suggest personal (preview options with vim bindings)
+        elif command_match(user_input, "suggest personalized"):
+            preview_suggestions(_suggestions_p)
+
+        # Option genre (print possible genres)
+        elif command_match(user_input, "genre"):
+            print("Genres:")
+            for g_id, g in MOVIE.get_genres().items():
+                print("\t{} - {}".format(g, g_id))
+
+        # TODO Option <genre>, filter suggestions by <genre> and preview
+        elif user_input and is_subset([x.strip() for x in user_input.split(",")], [g.lower() for g in MOVIE.get_genres().values()]):
+            preview_suggestions(_suggestions, genres=[x.strip() for x in user_input.split(",")])
+
+        # Option update ratings.csv from imdb and update suggestions.txt
+        elif command_match(user_input, "update"):
+            # TODO re-download ratings from imdb
+            update_suggestions(_ratings)
+
+        elif user_input == 'q':
+            sys.exit(0)
+
+        elif user_input:
+            print("Command '{}' didn't match.".format(user_input))
+
+        # Read user input
+        user_input = input("Enter command: ")
+
 if __name__ == "__main__":
     # Check config.json for validation (tmdb api)
     if not os.path.exists(CONFIG_PATH):
@@ -183,47 +236,4 @@ if __name__ == "__main__":
     else:
         update_suggestions(load_ratings())
 
-    user_input = ""
-
-    while True:
-        # clear terminal
-        os.system('clear')
-
-        # Print options
-        print("Options:")
-        print("\t's[uggest]' \t- preview {}".format(SUGGESTIONS_PATH))
-        print("\t's[uggest] p[ersonalized]' \t- preview {}".format(SUGGESTIONS_PERSONALIZED_PATH))
-        print("\t'g[enre]' \t- show genre options")
-        print("\t'<genre[s]>' \t- preview {} filtered by genre".format(SUGGESTIONS_PATH))
-        print("\t'u[pdate]' \t- update ratings.csv from imdb and generate suggestion files")
-
-        # Option suggest (preview options with vim bindings)
-        if command_match(user_input, "suggest"):
-            preview_suggestions(_suggestions)
-        # Option suggest personal (preview options with vim bindings)
-        elif command_match(user_input, "suggest personalized"):
-            preview_suggestions(_suggestions_p)
-
-        # Option genre (print possible genres)
-        elif command_match(user_input, "genre"):
-            print("Genres:")
-            for g_id, g in MOVIE.get_genres().items():
-                print("\t{} - {}".format(g, g_id))
-
-        # TODO Option <genre>, filter suggestions by <genre> and preview
-        elif user_input and is_subset(user_input.split(), [g.lower() for g in MOVIE.get_genres().values()]):
-            preview_suggestions(_suggestions, genres=user_input.split())
-
-        # Option update ratings.csv from imdb and update suggestions.txt
-        elif command_match(user_input, "update"):
-            # TODO re-download ratings from imdb
-            update_suggestions(_ratings)
-
-        elif user_input == 'q':
-            sys.exit(0)
-
-        elif user_input:
-            print("Command '{}' didn't match.".format(user_input))
-
-        # Read user input
-        user_input = input("Enter command: ")
+    movie_loop()

@@ -27,6 +27,11 @@ RATINGS_ENCRYPTION = "iso-8859-1"
 SUGGESTIONS_PATH = "suggestions.txt"
 SUGGESTIONS_PERSONALIZED_PATH = "suggestions_p.txt"
 
+# if windows
+if os.name == 'nt':
+    PREVIEW_COMMAND = "more"
+else:
+    PREVIEW_COMMAND = "less"
 
 def download_imdb_ratings():
     """
@@ -124,7 +129,6 @@ def preview_suggestions(suggs, item_count=100, genres=None):
     """
     Uses 'less' to preview dict of movie suggestions.
     """
-    print("preview", genres)
     id_to_genre = MOVIE.get_genres()
     full_text = ""
     count = 0
@@ -141,7 +145,7 @@ def preview_suggestions(suggs, item_count=100, genres=None):
             full_text += movie_item
 
     # TODO switch to subprocess?
-    os.system('echo -e "{}" | less'.format(full_text))
+    os.system('echo -e "{}" | {}'.format(full_text, PREVIEW_COMMAND))
 
 
 def command_match(text, command):

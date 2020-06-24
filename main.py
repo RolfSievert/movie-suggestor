@@ -117,10 +117,14 @@ def update_suggestions(ratings, tmdb_obj, status=True):
     res_p = {}
     for title, (scores, data) in suggs.items():
         if not data["id"] in seen:
-            res_p[title] = math.atan(data["popularity"]) * (
-                (sum(scores)) / 10) / len(scores), len(scores), data
-            res[title] = math.atan(data["popularity"]) * (
-                (sum(scores) + data["vote_average"]) / 10) / (len(scores) + 1), len(scores), data
+            popularity_score = math.atan(data["popularity"])
+            # Strongly punish relevance '1', not so much larger values
+            relevance_score = math.atan(math.sqrt(len(scores)))
+            # Circular shape
+            vote_average_score = math.sqrt(1-(1-data["vote_average"]/10)**1)
+            similar_average_score = (sum(scores) / 10) / len(scores)
+            res_p[title] = popularity_score * similar_average_score * relevance_score, len(scores), data
+            res[title] = popularity_score * vote_average_score * similar_average_score * relevance_score, len(scores), data
 
     # Sort on score
     res = sorted(res.items(), key=lambda item: item[1][0])
@@ -190,10 +194,15 @@ def suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_
     user_input = ""
 
     print("Note: All queries default to movie results.")
+    print("Note: Personalized suggestions doesn't include average rating when calculating suggestions.")
+    first = True
 
     while True:
-        # clear terminal
-        os.system('clear')
+        # clear terminal, but not for first loop
+        if first:
+            first = False
+        else:
+            os.system('clear')
 
         # Print options
         print("Options:")
@@ -223,7 +232,7 @@ def suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_
         # TODO Option <genre>, filter suggestions by <genre> and preview
         elif user_input and is_subset([x.strip().strip('-') for x in user_input.split(",")], [g.lower() for g in GENRES.values()]):
             preview_suggestions(_suggestions, genres=[x.strip() for x in user_input.split(",")])
-        elif user_input and command_match(user_input.split()[0], "tv") and is_subset([x.strip().strip('-') for x in user_input.split(" ", 1)[1].split(",")], [g.lower() for g in GENRES.values()]):
+        elif user_input and len(user_input.split()) > 1 and command_match(user_input.split()[0], "tv") and is_subset([x.strip().strip('-') for x in user_input.split(" ", 1)[1].split(",")], [g.lower() for g in GENRES.values()]):
             preview_suggestions(_suggestions_tv, genres=[x.strip() for x in user_input.split(" ", 1)[1].split(",")])
 
         # Option update ratings.csv from imdb and update suggestions.txt

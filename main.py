@@ -10,9 +10,10 @@ import sys
 import os
 import json
 import math
-from tmdb_helper import TMDbMovie
+from tmdb_helper import TMDbMovie, TMDbTV
 
 MOVIE = TMDbMovie()
+TV = TMDbTV()
 
 CONFIG_PATH = "config.json"
 
@@ -80,7 +81,7 @@ def similar_movies(movie_id):
     return res
 
 
-def update_suggestions(ratings, status=True):
+def update_suggestions(ratings, media_type="movie", status=True):
     """
     Generates suggestions based on ratings and saves them locally.
     @status: print status boolean

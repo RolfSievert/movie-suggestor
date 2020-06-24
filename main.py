@@ -14,6 +14,7 @@ from tmdb_helper import TMDbMovie, TMDbTV
 
 MOVIE = TMDbMovie()
 TV = TMDbTV()
+GENRES = {}
 
 CONFIG_PATH = "config.json"
 
@@ -50,7 +51,7 @@ class imdbData:
         self.title = data[3]
         self.imdb_link = data[4]
         # movie, tvSeries or tvMiniSeries
-        self.type = "movie" if data[5] == "movie" else "series"
+        self.type = "movie" if data[5] == "movie" else "tv"
         self.avg_rating = data[6]
         self.genres = data[9].split(", ")
         self.votes = data[10]
@@ -71,17 +72,17 @@ def load_ratings():
     return res
 
 
-def similar_movies(movie_id):
+def similar_search(tmdb_obj, media_id):
     """
     Finds similar movies of top result of search.
     """
-    res = MOVIE.get_recommendations(movie_id)
+    res = tmdb_obj.get_recommendations(media_id)
     if not res:
         return []
     return res
 
 
-def update_suggestions(ratings, media_type="movie", status=True):
+def update_suggestions(ratings, tmdb_obj, status=True):
     """
     Generates suggestions based on ratings and saves them locally.
     @status: print status boolean
@@ -98,15 +99,17 @@ def update_suggestions(ratings, media_type="movie", status=True):
             sys.stdout.write(text)
             i += 1
 
-        movs = MOVIE.search_by_imdb_id(data.imdb_id) if data.type == "movie" else None
+        movs = tmdb_obj.search_by_imdb_id(data.imdb_id) if data.type == tmdb_obj.media_type else None
         if movs:
             movie_id = movs[0]["id"]
             seen.append(movie_id)
-            for sugg in similar_movies(movie_id):
-                if sugg["title"] in suggs:
-                    suggs[sugg["title"]][0].append(data.user_rating)
+            for sugg in similar_search(tmdb_obj, movie_id):
+                # Different key if tv or movie
+                title = sugg["title"] if "title" in sugg else sugg["name"]
+                if title in suggs:
+                    suggs[title][0].append(data.user_rating)
                 else:
-                    suggs[sugg["title"]] = ([data.user_rating], sugg)
+                    suggs[title] = ([data.user_rating], sugg)
 
     # Calculate movie scores
     # personalized suggestions
@@ -124,10 +127,10 @@ def update_suggestions(ratings, media_type="movie", status=True):
     res_p = sorted(res_p.items(), key=lambda item: item[1][0])
 
     # Write result to file
-    with open(SUGGESTIONS_PATH, "w") as file:
+    with open(tmdb_obj.media_type + "_" + SUGGESTIONS_PATH, "w") as file:
         #for title, (score, relations, data) in res:
         file.write(json.dumps(res))
-    with open(SUGGESTIONS_PERSONALIZED_PATH, "w") as file_p:
+    with open(tmdb_obj.media_type + "_" + SUGGESTIONS_PERSONALIZED_PATH, "w") as file_p:
         #for title, (score, relations, data) in res:
         file_p.write(json.dumps(res_p))
 
@@ -144,18 +147,22 @@ def preview_suggestions(suggs, item_count=100, genres=None):
     """
     Uses 'less' to preview dict of movie suggestions.
     """
-    id_to_genre = MOVIE.get_genres()
+    genre_inclusions = [g for g in genres if g[0] != '-'] if genres else None
+    genre_exclusions = [g[1:] for g in genres if g[0] == '-'] if genres else None
     full_text = ""
     count = 0
     for title, (score, relations, data) in reversed(suggs):
-        movie_genres = [id_to_genre[g].lower() for g in data["genre_ids"]]
+        media_genres = [GENRES[g].lower() for g in data["genre_ids"]]
         if count == item_count:
             break
-        if not genres or is_subset(genres, movie_genres):
+
+        # If genre filtering is off, or suggestion matches filter inclusion and exclusion rules
+        if not (genre_inclusions or genre_exclusions) or is_subset(genre_inclusions, media_genres) and not set(genre_exclusions).intersection(media_genres):
+            date = data["release_date"] if "release_date" in data else data["first_air_date"]
             count += 1
             movie_item = "\e[33m{}\e[0m ({}) (match {:.2f}, relevance {})\n\tGenres: {}\n\tPopularity: {}\n\tRating: {}\n\t{}\n".format(
-                title, data["release_date"].split("-")[0], score, relations,
-                movie_genres, data["popularity"], data["vote_average"],
+                title, date.split("-")[0], score, relations,
+                media_genres, data["popularity"], data["vote_average"],
                 "https://www.themoviedb.org/movie/" + str(data["id"]))
             full_text += movie_item
 
@@ -176,11 +183,13 @@ def command_match(text, command):
             return False
     return True
 
-def movie_loop():
+def suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_tv_p):
     """
     Loop options for movies.
     """
     user_input = ""
+
+    print("Note: All queries default to movie results.")
 
     while True:
         # clear terminal
@@ -188,34 +197,41 @@ def movie_loop():
 
         # Print options
         print("Options:")
-        print("\t's[uggest]' \t- preview {}".format(SUGGESTIONS_PATH))
-        print("\t's[uggest] p[ersonalized]' \t- preview {}".format(SUGGESTIONS_PERSONALIZED_PATH))
+        print("\t's[uggest] [tv]' \t- preview <media_type>_{}".format(SUGGESTIONS_PATH))
+        print("\t's[uggest] [tv] p[ersonalized]' \t- preview <media_type>_{}".format(SUGGESTIONS_PERSONALIZED_PATH))
         print("\t'g[enre]' \t- show genre options")
-        print("\t'<genre>, ...' \t- preview {} filtered by genre".format(SUGGESTIONS_PATH))
+        print("\t'[tv] [-]<genre>, ...' \t- preview <media_type>_{} filtered by genre[s]".format(SUGGESTIONS_PATH))
         print("\t'u[pdate]' \t- update ratings.csv from imdb and generate suggestion files")
 
         # Option suggest (preview options with vim bindings)
         if command_match(user_input, "suggest"):
             preview_suggestions(_suggestions)
+        elif command_match(user_input, "suggest tv"):
+            preview_suggestions(_suggestions_tv)
         # Option suggest personal (preview options with vim bindings)
         elif command_match(user_input, "suggest personalized"):
             preview_suggestions(_suggestions_p)
+        elif command_match(user_input, "suggest tv personalized"):
+            preview_suggestions(_suggestions_tv_p)
 
         # Option genre (print possible genres)
         elif command_match(user_input, "genre"):
             print("Genres:")
-            for g_id, g in MOVIE.get_genres().items():
+            for g_id, g in GENRES.items():
                 print("\t{} - {}".format(g, g_id))
 
         # TODO Option <genre>, filter suggestions by <genre> and preview
-        elif user_input and is_subset([x.strip() for x in user_input.split(",")], [g.lower() for g in MOVIE.get_genres().values()]):
+        elif user_input and is_subset([x.strip().strip('-') for x in user_input.split(",")], [g.lower() for g in GENRES.values()]):
             preview_suggestions(_suggestions, genres=[x.strip() for x in user_input.split(",")])
+        elif user_input and command_match(user_input.split()[0], "tv") and is_subset([x.strip().strip('-') for x in user_input.split(" ", 1)[1].split(",")], [g.lower() for g in GENRES.values()]):
+            preview_suggestions(_suggestions_tv, genres=[x.strip() for x in user_input.split(" ", 1)[1].split(",")])
 
         # Option update ratings.csv from imdb and update suggestions.txt
         elif command_match(user_input, "update"):
             # TODO download ratings directly from imdb
             _ratings = load_ratings()
-            update_suggestions(_ratings)
+            _suggestions, _suggestions_p = update_suggestions(_ratings, MOVIE)
+            _suggestions_tv, _suggestions_tv_p = update_suggestions(_ratings, TV)
 
         elif user_input == 'q':
             sys.exit(0)
@@ -225,6 +241,10 @@ def movie_loop():
 
         # Read user input
         user_input = input("Enter command: ")
+
+def local_suggestions_exists():
+    return os.path.exists("movie_" + SUGGESTIONS_PATH) and os.path.exists("movie_" + SUGGESTIONS_PERSONALIZED_PATH) and os.path.exists("tv_" + SUGGESTIONS_PATH) and os.path.exists("tv_" + SUGGESTIONS_PERSONALIZED_PATH)
+
 
 if __name__ == "__main__":
     # Check config.json for validation (tmdb api)
@@ -238,6 +258,9 @@ if __name__ == "__main__":
     with open(CONFIG_PATH, 'r') as file:
         conf = json.loads(file.read())
     MOVIE.api_key = conf["api_key"]
+    TV.api_key = conf["api_key"]
+    GENRES.update(MOVIE.get_genres())
+    GENRES.update(TV.get_genres())
 
     # Check for existing ratings
     if not os.path.exists(RATINGS_PATH):
@@ -247,13 +270,18 @@ if __name__ == "__main__":
         _ratings = load_ratings()
 
     # Check for existing suggestions
-    if os.path.exists(SUGGESTIONS_PATH) and os.path.exists(SUGGESTIONS_PERSONALIZED_PATH):
-        with open(SUGGESTIONS_PATH, 'r') as _suggs:
+    if local_suggestions_exists():
+        with open("movie_" + SUGGESTIONS_PATH, 'r') as _suggs:
             _suggestions = json.loads(_suggs.read())
-        with open(SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
+        with open("movie_" + SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
             _suggestions_p = json.loads(_suggs.read())
+        with open("tv_" + SUGGESTIONS_PATH, 'r') as _suggs:
+            _suggestions_tv = json.loads(_suggs.read())
+        with open("tv_" + SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
+            _suggestions_tv_p = json.loads(_suggs.read())
     # Generate suggestion files
     else:
-        update_suggestions(load_ratings())
+        _suggestions, _suggestions_p = update_suggestions(_ratings, MOVIE)
+        _suggestions_tv, _suggestions_tv_p = update_suggestions(_ratings, TV)
 
-    movie_loop()
+    suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_tv_p)

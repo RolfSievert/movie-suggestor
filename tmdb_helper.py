@@ -25,6 +25,14 @@ class TMDbMovie:
         res = json.loads(res.text)
         return res["results"]
 
+    def search_by_imdb_id(self, imdb_id):
+        url = BASE_URL + "/find/{}".format(imdb_id)
+        p = self.__default_params()
+        p["external_source"] = "imdb_id"
+        res = requests.get(url, params=p)
+        res = json.loads(res.text)
+        return res["movie_results"]
+
     def get_recommendations(self, movie_id):
         """
         returns an array of movie recommendations based on query.

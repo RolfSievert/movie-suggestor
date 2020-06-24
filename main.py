@@ -41,6 +41,21 @@ def download_imdb_ratings():
     sys.exit(1)
     return {}
 
+class imdbData:
+    def __init__(self, data):
+        self.imdb_id = data[0]
+        self.user_rating = float(data[1])
+        self.rate_date = data[2]
+        self.title = data[3]
+        self.imdb_link = data[4]
+        # movie, tvSeries or tvMiniSeries
+        self.type = "movie" if data[5] == "movie" else "series"
+        self.avg_rating = data[6]
+        self.genres = data[9].split(", ")
+        self.votes = data[10]
+        self.release_date = data[11]
+        self.director = data[12]
+
 def load_ratings():
     """
     Read ratings from RATINGS_PATH
@@ -51,8 +66,7 @@ def load_ratings():
         for i, row in enumerate(spamreader):
             if i:
                 title = row[3]
-                score = float(row[1])
-                res[title] = score
+                res[title] = imdbData(row)
     return res
 
 
@@ -75,7 +89,7 @@ def update_suggestions(ratings, status=True):
     suggs = {}
     ratings_count = len(ratings)
     i = 0
-    for title, rating in ratings.items():
+    for title, data in ratings.items():
         # Print progress
         if status:
             text = "\r{}/{} processed".format(i, ratings_count)
@@ -83,15 +97,15 @@ def update_suggestions(ratings, status=True):
             sys.stdout.write(text)
             i += 1
 
-        movs = MOVIE.search(title)
+        movs = MOVIE.search_by_imdb_id(data.imdb_id) if data.type == "movie" else None
         if movs:
             movie_id = movs[0]["id"]
             seen.append(movie_id)
             for sugg in similar_movies(movie_id):
                 if sugg["title"] in suggs:
-                    suggs[sugg["title"]][0].append(rating)
+                    suggs[sugg["title"]][0].append(data.user_rating)
                 else:
-                    suggs[sugg["title"]] = ([rating], sugg)
+                    suggs[sugg["title"]] = ([data.user_rating], sugg)
 
     # Calculate movie scores
     # personalized suggestions
@@ -198,7 +212,8 @@ def movie_loop():
 
         # Option update ratings.csv from imdb and update suggestions.txt
         elif command_match(user_input, "update"):
-            # TODO re-download ratings from imdb
+            # TODO download ratings directly from imdb
+            _ratings = load_ratings()
             update_suggestions(_ratings)
 
         elif user_input == 'q':

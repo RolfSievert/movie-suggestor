@@ -26,6 +26,7 @@ TMDB_API_KEY_LINK = "https://www.themoviedb.org/settings/api"
 
 RATINGS_PATH = "ratings.csv"
 RATINGS_ENCRYPTION = "iso-8859-1"
+SUGGESTIONS_FOLDER = "suggestions"
 SUGGESTIONS_PATH = "suggestions.txt"
 SUGGESTIONS_PERSONALIZED_PATH = "suggestions_p.txt"
 
@@ -130,11 +131,13 @@ def update_suggestions(ratings, tmdb_obj, status=True):
     res = sorted(res.items(), key=lambda item: item[1][0])
     res_p = sorted(res_p.items(), key=lambda item: item[1][0])
 
+    if not os.path.exists(SUGGESTIONS_FOLDER):
+        os.makedirs(SUGGESTIONS_FOLDER)
     # Write result to file
-    with open(tmdb_obj.media_type + "_" + SUGGESTIONS_PATH, "w") as file:
+    with open(SUGGESTIONS_FOLDER + "/" + tmdb_obj.media_type + "_" + SUGGESTIONS_PATH, "w") as file:
         #for title, (score, relations, data) in res:
         file.write(json.dumps(res))
-    with open(tmdb_obj.media_type + "_" + SUGGESTIONS_PERSONALIZED_PATH, "w") as file_p:
+    with open(SUGGESTIONS_FOLDER + "/" + tmdb_obj.media_type + "_" + SUGGESTIONS_PERSONALIZED_PATH, "w") as file_p:
         #for title, (score, relations, data) in res:
         file_p.write(json.dumps(res_p))
 
@@ -252,7 +255,7 @@ def suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_
         user_input = input("Enter command: ")
 
 def local_suggestions_exists():
-    return os.path.exists("movie_" + SUGGESTIONS_PATH) and os.path.exists("movie_" + SUGGESTIONS_PERSONALIZED_PATH) and os.path.exists("tv_" + SUGGESTIONS_PATH) and os.path.exists("tv_" + SUGGESTIONS_PERSONALIZED_PATH)
+    return os.path.exists(SUGGESTIONS_FOLDER + "/" + "movie_" + SUGGESTIONS_PATH) and os.path.exists(SUGGESTIONS_FOLDER + "/" + "movie_" + SUGGESTIONS_PERSONALIZED_PATH) and os.path.exists(SUGGESTIONS_FOLDER + "/" + "tv_" + SUGGESTIONS_PATH) and os.path.exists(SUGGESTIONS_FOLDER + "/" + "tv_" + SUGGESTIONS_PERSONALIZED_PATH)
 
 
 if __name__ == "__main__":
@@ -280,13 +283,13 @@ if __name__ == "__main__":
 
     # Check for existing suggestions
     if local_suggestions_exists():
-        with open("movie_" + SUGGESTIONS_PATH, 'r') as _suggs:
+        with open(SUGGESTIONS_FOLDER + "/" + "movie_" + SUGGESTIONS_PATH, 'r') as _suggs:
             _suggestions = json.loads(_suggs.read())
-        with open("movie_" + SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
+        with open(SUGGESTIONS_FOLDER + "/" + "movie_" + SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
             _suggestions_p = json.loads(_suggs.read())
-        with open("tv_" + SUGGESTIONS_PATH, 'r') as _suggs:
+        with open(SUGGESTIONS_FOLDER + "/" + "tv_" + SUGGESTIONS_PATH, 'r') as _suggs:
             _suggestions_tv = json.loads(_suggs.read())
-        with open("tv_" + SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
+        with open(SUGGESTIONS_FOLDER + "/" + "tv_" + SUGGESTIONS_PERSONALIZED_PATH, 'r') as _suggs:
             _suggestions_tv_p = json.loads(_suggs.read())
     # Generate suggestion files
     else:

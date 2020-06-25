@@ -150,7 +150,7 @@ def is_subset(subs, s):
     """
     return len([x for x in subs if x in s]) == len(subs)
 
-def preview_suggestions(suggs, item_count=100, genres=None):
+def preview_suggestions(suggs, media_type="movie", item_count=100, genres=None):
     """
     Uses 'less' to preview dict of movie suggestions.
     """
@@ -170,7 +170,7 @@ def preview_suggestions(suggs, item_count=100, genres=None):
             movie_item = "\e[33m{}\e[0m ({}) (match {:.2f}, relevance {})\n\tGenres: {}\n\tPopularity: {}\n\tRating: {}\n\t{}\n".format(
                 title, date.split("-")[0], score, relations,
                 media_genres, data["popularity"], data["vote_average"],
-                "https://www.themoviedb.org/movie/" + str(data["id"]))
+                "https://www.themoviedb.org/{}/".format(media_type) + str(data["id"]))
             full_text += movie_item
 
     # TODO switch to subprocess?
@@ -219,12 +219,12 @@ def suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_
         if command_match(user_input, "suggest"):
             preview_suggestions(_suggestions)
         elif command_match(user_input, "suggest tv"):
-            preview_suggestions(_suggestions_tv)
+            preview_suggestions(_suggestions_tv, media_type="tv")
         # Option suggest personal (preview options with vim bindings)
         elif command_match(user_input, "suggest personalized"):
             preview_suggestions(_suggestions_p)
         elif command_match(user_input, "suggest tv personalized"):
-            preview_suggestions(_suggestions_tv_p)
+            preview_suggestions(_suggestions_tv_p, media_type="tv")
 
         # Option genre (print possible genres)
         elif command_match(user_input, "genre"):

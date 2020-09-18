@@ -120,7 +120,7 @@ def update_suggestions(ratings, tmdb_obj, status=True):
         if not data["id"] in seen:
             popularity_score = math.atan(data["popularity"])
             # Strongly punish relevance '1', not so much larger values
-            relevance_score = math.atan(math.sqrt(len(scores)))
+            relevance_score = 1 #math.atan(math.sqrt(len(scores)))
             # Circular shape
             vote_average_score = math.sqrt(1-(1-data["vote_average"]/10)**1)
             similar_average_score = (sum(scores) / 10) / len(scores)

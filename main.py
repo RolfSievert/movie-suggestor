@@ -82,6 +82,24 @@ def similar_search(tmdb_obj, media_id):
         return []
     return res
 
+def suggest_score(popularity, vote_average, scores):
+    """
+    Function of which suggestion scores are made.
+    Modify this for different results.
+    """
+    # Popularity is calculated by searches, favourites, votes, etc: https://developers.themoviedb.org/3/getting-started/popularity
+    # Popularity can vary from 100 (a popular old movie) to 2000 (newly released hyped movie)
+    popularity_score = math.atan(popularity)
+    # Relevance score rewards movies with many similar movies (from your scores). Set to '1' to ignore relevance.
+    relevance_score = math.atan(math.sqrt(len(scores)*10))
+    # how vote average on TMDb should affect the score. This function uses a circular shape.
+    vote_average_score = math.sqrt(1-(1-vote_average/10)**1)
+    # how the scores of your similar ratings should be affecting suggestions
+    similar_average_score = (sum(scores) / 10) / len(scores)
+
+    personified_score = popularity_score * similar_average_score * relevance_score
+    score = popularity_score * similar_average_score * relevance_score * vote_average_score
+    return score, personified_score
 
 def update_suggestions(ratings, tmdb_obj, status=True):
     """
@@ -118,14 +136,9 @@ def update_suggestions(ratings, tmdb_obj, status=True):
     res_p = {}
     for title, (scores, data) in suggs.items():
         if not data["id"] in seen:
-            popularity_score = math.atan(data["popularity"])
-            # Strongly punish relevance '1', not so much larger values
-            relevance_score = 1 #math.atan(math.sqrt(len(scores)))
-            # Circular shape
-            vote_average_score = math.sqrt(1-(1-data["vote_average"]/10)**1)
-            similar_average_score = (sum(scores) / 10) / len(scores)
-            res_p[title] = popularity_score * similar_average_score * relevance_score, len(scores), data
-            res[title] = popularity_score * vote_average_score * similar_average_score * relevance_score, len(scores), data
+            s, s_p = suggest_score(data["popularity"], data["vote_average"], scores)
+            res_p[title] = s_p, len(scores), data
+            res[title] = s, len(scores), data
 
     # Sort on score
     res = sorted(res.items(), key=lambda item: item[1][0])

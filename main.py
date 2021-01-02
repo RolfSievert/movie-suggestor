@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 """
-Suggest movies based on user's ratings.
+Suggest movies and shows based on user's ratings.
+"""
+
+"""BUGS
+* cannot use multiple genres in search
 """
 
 import csv
@@ -246,10 +250,11 @@ def suggestion_loop(_suggestions, _suggestions_tv, _suggestions_p, _suggestions_
                 print("\t{} - {}".format(g, g_id))
 
         # TODO Option <genre>, filter suggestions by <genre> and preview
+        # TODO filter by multiple genres
         elif user_input and is_subset([x.strip().strip('-') for x in user_input.split(",")], [g.lower() for g in GENRES.values()]):
             preview_suggestions(_suggestions, genres=[x.strip() for x in user_input.split(",")])
         elif user_input and len(user_input.split()) > 1 and command_match(user_input.split()[0], "tv") and is_subset([x.strip().strip('-') for x in user_input.split(" ", 1)[1].split(",")], [g.lower() for g in GENRES.values()]):
-            preview_suggestions(_suggestions_tv, genres=[x.strip() for x in user_input.split(" ", 1)[1].split(",")])
+            preview_suggestions(_suggestions_tv, media_type="tv", genres=[x.strip() for x in user_input.split(" ", 1)[1].split(",")])
 
         # Option update ratings.csv from imdb and update suggestions.txt
         elif command_match(user_input, "update"):

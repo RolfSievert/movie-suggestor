@@ -5,10 +5,6 @@
 Suggest movies and shows based on user's ratings.
 """
 
-"""BUGS
-* cannot use multiple genres in search
-"""
-
 import csv
 import sys
 import os

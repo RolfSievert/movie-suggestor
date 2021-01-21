@@ -284,6 +284,7 @@ if __name__ == "__main__":
     with open(CONFIG_PATH, 'r') as file:
         conf = json.loads(file.read())
     MOVIE.api_key = conf["api_key"]
+
     TV.api_key = conf["api_key"]
     GENRES.update(MOVIE.get_genres())
     GENRES.update(TV.get_genres())

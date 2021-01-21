@@ -29,6 +29,16 @@ class TMDb:
         res = json.loads(res.text)
         return res["results"]
 
+    def get_credits(self, media_id):
+        """
+        Returns two separate lists of the cast and crew.
+        """
+        url = BASE_URL + "/{}/{}/credits"
+        p = self.__default_params()
+        res = requests.get(url.format(self.media_type, media_id), params=p)
+        res = json.loads(res.text)
+        return res['cast'], res['crew']
+
     def search_by_imdb_id(self, imdb_id):
         url = BASE_URL + "/find/{}".format(imdb_id)
         p = self.__default_params()
@@ -46,6 +56,16 @@ class TMDb:
         res = requests.get(url.format(self.media_type, media_id), params=p)
         res = json.loads(res.text)
         return res['results']
+
+    def get_where_to_watch(self, media_id, country_code):
+        """
+        Uses JustWatch. Returns watch providers {link, [flatrate], [rent], [buy]}
+        """
+        url = BASE_URL + "/{}/{}/watch/providers"
+        p = self.__default_params()
+        res = requests.get(url.format(self.media_type, media_id), params=p)
+        res = json.loads(res.text)
+        return res['results'][country_code.upper()]
 
     def get_genres(self):
         """
